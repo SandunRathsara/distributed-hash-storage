@@ -1,16 +1,28 @@
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
+import express, {Request, Response} from "express";
+import {startNode} from "./util/check-port-availability";
+import {getNodeId, getNodeName, setNodeId} from "./util/server-config";
+import { json2csv, csv2json } from 'json-2-csv';
+import {appendFileSync} from "fs";
 
-const app = new Hono()
+const app = express()
+let port = 3000
 
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
+app.use(express.json())
+
+app.post('/', (req: Request, res: Response) => {
+    // convert json to csv and append into the node table
+    const csv = json2csv(req.body)
+    appendFileSync('./store/node_table.csv', csv)
+
+    res.send({name: getNodeName(), id: getNodeId()})
 })
 
-const port = 3000
-console.log(`Server is running on port ${port}`)
-
-serve({
-  fetch: app.fetch,
-  port
-})
+async function main () {
+    let started = await startNode(port, app)
+    while (!started) {
+        port++
+        setNodeId(getNodeId()+1)
+        started = await startNode(port, app)
+    }
+}
+main()

@@ -1,0 +1,7 @@
+POST {{baseurl}}3000
+Content-Type : application/json
+
+{
+    "name": "test123",
+    "id": 3
+}
