@@ -26,5 +26,5 @@ export function getNodeRole() {
 }
 
 export function setNodeRole(name: ROLES) {
-    NODE_NAME = name;
+    NODE_ROLE = name;
 }

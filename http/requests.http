@@ -1,7 +1,8 @@
-POST {{baseurl}}3000
-Content-Type : application/json
+POST / HTTP/1.1
+Host: localhost:3001
+Content-Type: application/json
 
 {
-    "name": "test123",
-    "id": 3
+  "name": "test123",
+  "id": 3
 }
