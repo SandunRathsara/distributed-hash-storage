@@ -21,12 +21,12 @@ export class NodeRepository {
 
     public addNewNode(data: { name: string, id: number }) {
         const nodes = this.readFileAndConvertToJson();
-        console.log(nodes)
-        const node = nodes.find((row) => row.id === data.id);
-        if (!node) {
-            nodes.push(data);
-            this.convertToCsvAndWriteToFile(nodes);
-        }
+        const nodeIndex = nodes.findIndex((row) => row.id === data.id);
+        if (nodeIndex < 0) nodes.push(data);
+        else nodes[nodeIndex] = data;
+
+        this.convertToCsvAndWriteToFile(nodes);
+
     }
 
     public getAllNodes() {
