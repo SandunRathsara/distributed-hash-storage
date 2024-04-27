@@ -35,4 +35,21 @@ export class ClusterService {
             })
         })
     }
+
+    heartBeat() {
+        const nodeRepo = new FileRepository(NODE_TABLE_FILE_PATH(getNodeId()))
+        const nodes = nodeRepo.getAllData()
+        nodes.forEach((node) => {
+            fetch(`http://localhost:300${node.id}/heart-beat`, {
+                method: 'get',
+                headers: {'Content-Type': 'application/json'},
+            }).then(async (res) => {
+                if (res.ok) console.log(`Heartbeat sent to node ${node.id} and Node is alive`)
+            }).catch((err) => {
+                if (err?.cause?.code === 'ECONNREFUSED') console.log(`No service running on port 300${node.id}`)
+                else console.error('ERROR => ', err.message)
+                nodeRepo.removeDataById(node.id)
+            })
+        })
+    }
 }

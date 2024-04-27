@@ -1,6 +1,7 @@
 import {Express} from "express";
 import {getNodeId, getNodeName, getNodeRole, ROLES, setNodeRole} from "./server-config";
 import {ClusterService} from "../services/cluster-service";
+import {heartBeatCron} from "../services/cron-service";
 export function startNode(port: number, app: Express): Promise<boolean> {
     return new Promise((resolve) => {
         const server = require('http').createServer(app)
@@ -15,6 +16,7 @@ export function startNode(port: number, app: Express): Promise<boolean> {
             console.log(`Server is running on port ${port}. ${getNodeRole()} role is assigned and named ${getNodeName()}`)
             const clusterService = new ClusterService()
             clusterService.connectWithCluster()
+            heartBeatCron.start();
             resolve(true)
         })
 
