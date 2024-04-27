@@ -4,7 +4,7 @@ import {getNodeId, getNodeName, getNodeRole, ROLES, setNodeId} from "./util/serv
 import {json2csv} from 'json-2-csv';
 import {calculateNodeId} from "./util/calculateNodeId";
 import {json, urlencoded, raw} from "body-parser";
-import {NodeRepository} from "./repositories/node-repository";
+import {FileRepository} from "./repositories/file-repository";
 import {NODE_TABLE_FILE_PATH} from "./util/constants";
 
 const app = express()
@@ -15,20 +15,22 @@ app.use(json())
 app.use(urlencoded({extended: true}))
 
 app.post('/connect', (req: Request, res: Response) => {
-    // convert json to csv and append into the node table
 
-    const filePath = `/Users/alpha/Developer/personal/distributed/src/store/node_table_${getNodeId()}.csv`;
-    const nodeRepo = new NodeRepository(filePath)
+    const nodeRepo = new FileRepository(NODE_TABLE_FILE_PATH(getNodeId()))
 
-    nodeRepo.addNewNode(req.body)
+    nodeRepo.addOrUpdateData(req.body)
 
-    res.send({name: getNodeName(), id: getNodeId()})
+    res.send({name: getNodeName(), id: getNodeId(), role: getNodeRole()})
 })
 
 app.post('/disconnect', (req: Request, res: Response) => {
-    const nodeRepo = new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId()))
-    nodeRepo.removeNodeById(req.body.id);
+    const nodeRepo = new FileRepository(NODE_TABLE_FILE_PATH(getNodeId()))
+    nodeRepo.removeDataById(req.body.id);
     res.send('Success');
+})
+
+app.get('/heart-beat', (_, res: Response) => {
+  res.send({id: getNodeId(), name: getNodeName(), role: getNodeRole()})
 })
 
 app.get('/get-data', (req: Request, res: Response) => {

@@ -2,7 +2,7 @@
 import {csv2json, json2csv} from "json-2-csv";
 import {existsSync, readFileSync, writeFileSync} from "fs";
 
-export class NodeRepository {
+export class FileRepository {
     private readonly filepath: string;
 
     constructor(filename: string) {
@@ -19,7 +19,7 @@ export class NodeRepository {
         writeFileSync(this.filepath, csv);
     }
 
-    public addNewNode(data: { name: string, id: number }) {
+    public addOrUpdateData(data: { name: string, id: number }) {
         const nodes = this.readFileAndConvertToJson();
         const nodeIndex = nodes.findIndex((row) => row.id === data.id);
         if (nodeIndex < 0) nodes.push(data);
@@ -29,15 +29,15 @@ export class NodeRepository {
 
     }
 
-    public getAllNodes() {
+    public getAllData() {
         return this.readFileAndConvertToJson();
     }
 
-    public getNodeById(id: number) {
+    public getDataById(id: number) {
         return this.readFileAndConvertToJson().find((row) => row.id === id);
     }
 
-    public removeNodeById(id: number) {
+    public removeDataById(id: number) {
         const nodes = this.readFileAndConvertToJson();
         const index = nodes.findIndex((row) => row.id === id);
         if (index !== -1) {
