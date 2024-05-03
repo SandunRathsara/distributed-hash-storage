@@ -1,11 +1,12 @@
 import express, {Request, Response} from "express";
 import {startNode} from "./util/check-port-availability";
 import {getNodeId, getNodeName, getNodeRole, ROLES, setNodeId} from "./util/server-config";
-import {json2csv} from 'json-2-csv';
 import {calculateNodeId} from "./util/calculateNodeId";
 import {json, urlencoded, raw} from "body-parser";
-import {FileRepository} from "./repositories/file-repository";
-import {NODE_TABLE_FILE_PATH} from "./util/constants";
+import {NodeRepository} from "./repositories/node-repository";
+import {DATA_TABLE_FILE_PATH, NODE_TABLE_FILE_PATH} from "./util/constants";
+import isEmpty from "lodash/isEmpty";
+import {DataRepository} from "./repositories/data-repository";
 
 const app = express()
 let port = 3000
@@ -16,16 +17,16 @@ app.use(urlencoded({extended: true}))
 
 app.post('/connect', (req: Request, res: Response) => {
 
-    const nodeRepo = new FileRepository(NODE_TABLE_FILE_PATH(getNodeId()))
+    const nodeRepo = new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId()))
 
-    nodeRepo.addOrUpdateData(req.body)
+    nodeRepo.addOrUpdateNode(req.body)
 
     res.send({name: getNodeName(), id: getNodeId(), role: getNodeRole()})
 })
 
 app.post('/disconnect', (req: Request, res: Response) => {
-    const nodeRepo = new FileRepository(NODE_TABLE_FILE_PATH(getNodeId()))
-    nodeRepo.removeDataById(req.body.id);
+    const nodeRepo = new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId()))
+    nodeRepo.removeNodeById(req.body.id);
     res.send('Success');
 })
 
@@ -33,30 +34,61 @@ app.get('/heart-beat', (_, res: Response) => {
   res.send({id: getNodeId(), name: getNodeName(), role: getNodeRole()})
 })
 
-app.get('/get-data', (req: Request, res: Response) => {
+app.post('/store-data', async (req: Request, res: Response) => {
+    if (getNodeRole() === ROLES.HASHER) {
+        const data = await fetch(`http://localhost:300${getNodeId() - 1 % 5}/hash-data`, {
+            method: 'POST',
+            body: JSON.stringify(req.body),
+            headers: {'Content-Type': 'application/json'}
+        })
+        res.status(data.status).send(data.statusText)
+    }
+
+    if (isEmpty(req.body.key) || isEmpty(req.body.value)) res.status(400).send('Bad Request')
+    const {key, value} = req.body
+
+    const dataRepo = new DataRepository(DATA_TABLE_FILE_PATH(getNodeId()))
+    dataRepo.addOrUpdateData({key, value})
+
+    return res.status(201).send('Saved')
+})
+
+app.get('/get-data', async (req: Request, res: Response) => {
+    if (isEmpty(req.query.key)) res.status(400).send('Bad Request');
+    const {key, internal} = req.query
+
     if (getNodeRole() === ROLES.HASHER) {
         const nodeId = calculateNodeId(req.body.hash)
         const data = fetch(`http://localhost:300${nodeId}/get-data`)
         res.send(data)
     }
 
-    // const file: any[] = csv2json('./store/value_table.csv')
-    // return res.send(file.find((row) => row.key === req.body.hash))
-})
+    const dataRepo = new DataRepository(DATA_TABLE_FILE_PATH(getNodeId()))
+    const data = dataRepo.getDataByKey(key as string)
 
-app.post('/store-data', (req: Request, res: Response) => {
-    if (getNodeRole() === ROLES.HASHER) {
-        const data = fetch(`http://localhost:300${getNodeId() - 1 % 5}/hash-data`, {
-            method: 'POST',
-            body: JSON.stringify(req.body),
-            headers: {'Content-Type': 'application/json'}
-        })
-        res.send('Success');
+    if (isEmpty(data) && internal !== 'true') {
+        if (parseInt(internal as string) === 1) return res.status(404).send('Data not found');
+
+        const nodeIds = (new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId())))
+            .getAllNodes()
+            .filter(node => node.role === ROLES.RECEIVER)
+            .map(node => node.id)
+
+        for (const nodeId of nodeIds) {
+            console.log('nodeId', nodeId)
+            const dataRes = await fetch(`http://localhost:300${nodeId}/get-data?key=${key}&internal=1`)
+            console.log('requestResponse', nodeId, dataRes.ok)
+            if (!dataRes.ok) continue
+
+            const dataJson = await dataRes.json()
+            console.log('dataJson', nodeId, dataJson)
+            if (isEmpty(dataJson)) continue
+
+            return res.send(dataJson)
+        }
+        return res.status(404).send('Data not found');
     }
-
-    const csv = json2csv(req.body)
-    // appendFileSync('./store/value_table.csv', csv)
-    // res.send({id: getNodeId(), name: getNodeName(), role: getNodeRole()})
+    return res.send(data)
 })
 
 // Hasher Routes

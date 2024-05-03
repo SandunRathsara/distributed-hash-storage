@@ -1,10 +1,10 @@
 import {getNodeId, getNodeName, getNodeRole} from "../util/server-config";
-import {FileRepository} from "../repositories/file-repository";
+import {NodeRepository} from "../repositories/node-repository";
 import {NODE_TABLE_FILE_PATH} from "../util/constants";
 
 export class ClusterService {
     connectWithCluster() {
-        const nodeRepo = new FileRepository(NODE_TABLE_FILE_PATH(getNodeId()))
+        const nodeRepo = new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId()))
         for (let i = 0; i < 5; i++) {
             if (i === getNodeId()) continue;
 
@@ -14,7 +14,7 @@ export class ClusterService {
                 body: JSON.stringify({name: getNodeName(), id: getNodeId(), role: getNodeRole()})
             }).then(async (res) => {
                 const data = await res.json()
-                nodeRepo.addOrUpdateData(data)
+                nodeRepo.addOrUpdateNode(data)
             }).catch((err) => {
                 if (err?.cause?.code === 'ECONNREFUSED') console.log(`No service running on port 300${i}`)
                 else console.error('ERROR => ', err.message)
@@ -23,8 +23,8 @@ export class ClusterService {
     }
 
     disconnectFromCluster() {
-        const nodeRepo = new FileRepository(NODE_TABLE_FILE_PATH(getNodeId()))
-        const nodes = nodeRepo.getAllData()
+        const nodeRepo = new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId()))
+        const nodes = nodeRepo.getAllNodes()
         nodes.forEach((node) => {
             fetch(`http://localhost:300${node.id}/disconnect`, {
                 method: 'post',
@@ -37,8 +37,8 @@ export class ClusterService {
     }
 
     heartBeat() {
-        const nodeRepo = new FileRepository(NODE_TABLE_FILE_PATH(getNodeId()))
-        const nodes = nodeRepo.getAllData()
+        const nodeRepo = new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId()))
+        const nodes = nodeRepo.getAllNodes()
         nodes.forEach((node) => {
             fetch(`http://localhost:300${node.id}/heart-beat`, {
                 method: 'get',
@@ -48,7 +48,7 @@ export class ClusterService {
             }).catch((err) => {
                 if (err?.cause?.code === 'ECONNREFUSED') console.log(`No service running on port 300${node.id}`)
                 else console.error('ERROR => ', err.message)
-                nodeRepo.removeDataById(node.id)
+                nodeRepo.removeNodeById(node.id)
             })
         })
     }
