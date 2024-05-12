@@ -120,7 +120,7 @@ app.post('/hash-data', async (req: Request, res: Response) => {
         message: 'Bad Request'
     })
 
-    const algorithm = createHash('sha1')
+    const algorithm = createHash('sha256')
     const key = algorithm.update(paragraph.substring(0, 10)).digest('hex')
     const [res1, res2] = await Promise.all([fetch(`http://localhost:300${calculateNodeId()}/store-data`, {
         method: 'POST',
