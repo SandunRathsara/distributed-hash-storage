@@ -7,6 +7,8 @@ import {NodeRepository} from "./repositories/node-repository";
 import {DATA_TABLE_FILE_PATH, NODE_TABLE_FILE_PATH} from "./util/constants";
 import isEmpty from "lodash/isEmpty";
 import {DataRepository} from "./repositories/data-repository";
+import {createHash} from "node:crypto";
+
 
 const app = express()
 let port = 3000
@@ -15,59 +17,66 @@ app.use(raw())
 app.use(json())
 app.use(urlencoded({extended: true}))
 
+// ======================================== Cluster Management ========================================
+// ====================================== Connect to the Cluster ======================================
 app.post('/connect', (req: Request, res: Response) => {
 
     const nodeRepo = new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId()))
 
     nodeRepo.addOrUpdateNode(req.body)
 
-    res.send({name: getNodeName(), id: getNodeId(), role: getNodeRole()})
+    return res.send({name: getNodeName(), id: getNodeId(), role: getNodeRole()})
 })
 
+// ==================================== Disconnect from the Cluster ===================================
 app.post('/disconnect', (req: Request, res: Response) => {
     const nodeRepo = new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId()))
     nodeRepo.removeNodeById(req.body.id);
-    res.send('Success');
+    return res.send({success: true, message: 'Successfully disconnected from the cluster'});
 })
 
+// ================================== Check if the nodes are active ===================================
 app.get('/heart-beat', (_, res: Response) => {
-  res.send({id: getNodeId(), name: getNodeName(), role: getNodeRole()})
+    return res.send({id: getNodeId(), name: getNodeName(), role: getNodeRole()})
 })
 
+
+// ======================================== Storage Management ========================================
+// ========================================== Store Data ==============================================
 app.post('/store-data', async (req: Request, res: Response) => {
     if (getNodeRole() === ROLES.HASHER) {
-        const data = await fetch(`http://localhost:300${getNodeId() - 1 % 5}/hash-data`, {
+        const data = await fetch(`http://localhost:300${calculateNodeId()}/hash-data`, {
             method: 'POST',
             body: JSON.stringify(req.body),
             headers: {'Content-Type': 'application/json'}
         })
-        res.status(data.status).send(data.statusText)
+        return res.status(data.status).send({success: true, message: 'Success', data: await data.json()})
     }
 
-    if (isEmpty(req.body.key) || isEmpty(req.body.value)) res.status(400).send('Bad Request')
+    if (isEmpty(req.body.key) || isEmpty(req.body.value)) return res.status(400).send('Bad Request')
     const {key, value} = req.body
 
     const dataRepo = new DataRepository(DATA_TABLE_FILE_PATH(getNodeId()))
     dataRepo.addOrUpdateData({key, value})
 
-    return res.status(201).send('Saved')
+    return res.status(201).send({success: true, message: 'Saved', data: {key}})
 })
 
+// ========================================== Get Data ==============================================
 app.get('/get-data', async (req: Request, res: Response) => {
-    if (isEmpty(req.query.key)) res.status(400).send('Bad Request');
+    if (isEmpty(req.query.key)) return res.status(400).send({success: false, message: 'Bad Request'});
     const {key, internal} = req.query
 
     if (getNodeRole() === ROLES.HASHER) {
-        const nodeId = calculateNodeId(req.body.hash)
-        const data = fetch(`http://localhost:300${nodeId}/get-data`)
-        res.send(data)
+        const data = await fetch(`http://localhost:300${calculateNodeId()}/get-data?key=${key}`)
+        return res.send(await data.json())
     }
 
     const dataRepo = new DataRepository(DATA_TABLE_FILE_PATH(getNodeId()))
     const data = dataRepo.getDataByKey(key as string)
 
-    if (isEmpty(data) && internal !== 'true') {
-        if (parseInt(internal as string) === 1) return res.status(404).send('Data not found');
+    if (isEmpty(data)) {
+        if (parseInt(internal as string) === 1) return res.status(404).send({success: false, message: 'Data not found'});
 
         const nodeIds = (new NodeRepository(NODE_TABLE_FILE_PATH(getNodeId())))
             .getAllNodes()
@@ -75,45 +84,45 @@ app.get('/get-data', async (req: Request, res: Response) => {
             .map(node => node.id)
 
         for (const nodeId of nodeIds) {
-            console.log('nodeId', nodeId)
             const dataRes = await fetch(`http://localhost:300${nodeId}/get-data?key=${key}&internal=1`)
-            console.log('requestResponse', nodeId, dataRes.ok)
             if (!dataRes.ok) continue
 
             const dataJson = await dataRes.json()
-            console.log('dataJson', nodeId, dataJson)
             if (isEmpty(dataJson)) continue
 
             return res.send(dataJson)
         }
-        return res.status(404).send('Data not found');
+        return res.status(404).send({success: false, message: 'Data not found'});
     }
-    return res.send(data)
+    return res.send({success: true, message: 'Success', data})
 })
 
-// Hasher Routes
+// ======================================== Hasher Management ========================================
+// ========================================== Hash Data ==============================================
 app.post('/hash-data', async (req: Request, res: Response) => {
+    console.log('here', calculateNodeId())
     if (getNodeRole() === ROLES.RECEIVER) {
-        const data = await fetch(`http://localhost:300${getNodeId() - 1 % 5}/hash-data`,
+        const data = await fetch(`http://localhost:300${calculateNodeId()}/hash-data`,
             {
                 method: 'POST',
                 body: JSON.stringify(req.body),
                 headers: {'Content-Type': 'application/json'}
             })
-        res.send(data)
+        return res.send({success: true, message: 'Success', data: await data.json()})
     }
 
     const paragraph = req.body.paragraph
-    // create a hash value using sha-1 algorithm from the first 10 characters of the paragraph
-    const algorithm = require('crypto').createHash('sha1')
-    const hash = algorithm.hash(paragraph.substring(0, 10)).digest('hex')
-    const response = await fetch(`http://localhost:300${calculateNodeId(hash)}/store-data`, {
+    if (isEmpty(paragraph) || typeof paragraph !== 'string') return res.status(400).send({success: false, message: 'Bad Request'})
+
+    const algorithm = createHash('sha1')
+    const hash = algorithm.update(paragraph.substring(0, 10)).digest('hex')
+    const response = await fetch(`http://localhost:300${calculateNodeId()}/store-data`, {
         method: 'POST',
         body: JSON.stringify({key: hash, value: paragraph}),
         headers: {'Content-Type': 'application/json'}
     })
 
-    res.send('Success')
+    return res.send({success: true, message: 'Success', data: await response.json()})
 })
 
 async function main() {

@@ -20,15 +20,24 @@ Content-Type: application/json
 
 ### Store Data
 POST /store-data HTTP/1.1
-Host: localhost:3004
+Host: localhost:3002
 Content-Type: application/json
 
 {
-  "key": "VIOSUNEWIOEIFONDNFSLNFD",
-  "value": "Chandrapala Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+  "key": "VIOSUNEWIOEIFONDNFSLNFD12",
+  "value": "Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 }
 
 ### Get Data
-GET /get-data?key=VIOSUNEWIOEIFONDNFSLNFD HTTP/1.1
-Host: localhost:3002
+GET /get-data?key=0fafc6836d452db5bde00ebe33a6aa791f0d5f94 HTTP/1.1
+Host: localhost:3000
 Content-Type: application/json
+
+### hash data
+POST /hash-data HTTP/1.1
+Host: localhost:3000
+Content-Type: application/json
+
+{
+  "paragraph": "Asgard, in this telling, was no longer a Kirbyesque Future City but was a Viking hall and collection of buildings out on the frozen wastes; Odin the all-father was no longer gentle, wise, and irascible, but instead he was brilliant, unknowable, and dangerous; Thor was just as strong as the Mighty Thor in the comics, his hammer as powerful, but he was... well, honestly, not the brightest of the gods; and Loki was not evil, although he was certainly not a force for good. Loki was... complicated."
+}
