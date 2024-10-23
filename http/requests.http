@@ -29,7 +29,7 @@ Content-Type: application/json
 }
 
 ### Get Data
-GET /get-data?key=0fafc6836d452db5bde00ebe33a6aa791f0d5f94 HTTP/1.1
+GET /get-data?key=5da9f1378e2846a487b781c8425eb5fb946cab1311a2122ac410356ed6feb64b HTTP/1.1
 Host: localhost:3000
 Content-Type: application/json
 
